@@ -1,0 +1,9 @@
+dataclasses==0.8
+numpy==1.19.5
+Pillow==8.1.2
+pkg-resources==0.0.0
+PySocks==1.7.1
+torch==1.8.1+cu111
+torchaudio==0.8.1
+torchvision==0.9.1+cu111
+typing-extensions==3.7.4.3
