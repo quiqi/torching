@@ -12,7 +12,7 @@
 
 ## Information
 
-**语言：**Python3.6.9
+**语言：** Python3.6.9
 
 **平台：** Ubuntu18.04.5LTS
 
