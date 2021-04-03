@@ -1,6 +1,10 @@
+import logging
+
+
 class TaskBase:
     @staticmethod
     def run():
+        logging.info('hallo word!')
         print('==============================hallo word!============================')
         print('   __                               ___       ___\n'
               ' _/ /_   _____.    ___      ____   /  /__    /__/   ______    _____.\n'
