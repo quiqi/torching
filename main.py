@@ -14,7 +14,7 @@ class ArgError(Exception):
 
 
 if __name__ == '__main__':
-    sys.argv = ['main.py', 'task.similar_food101_train_task.SimilarFood101TrainTask']
+    # sys.argv = ['main.py', 'task.similar_food101_train_task.SimilarFood101TrainTask']
     # 参数检测
     if len(sys.argv) < 2:
         raise ArgError

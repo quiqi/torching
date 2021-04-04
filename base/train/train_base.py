@@ -1,4 +1,3 @@
-import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -17,6 +16,12 @@ H_ARG = {
     'random_seed': random.randint(0, 1000),
     'data_root': './data/'
 }
+
+
+def norm_acc(outputs, labels):
+    _, pred = torch.max(outputs, 1)
+    acc = (pred == labels).float().mean()
+    return acc
 
 
 class TrainBase:
@@ -40,6 +45,10 @@ class TrainBase:
         self.save_root = "output/save_pth/"
         torch.manual_seed(self.h_args['random_seed'])
         self.model = self.get_model()
+        self.cuda = torch.cuda.is_available()
+        self.criterion = self.loss_fun()
+        self.optimizer = self.optim_fun()
+        self.acc = self.acc_fun()
 
         logging.info('==============init train====================')
         logging.info('init {}: {}'.format(self.name, self.info))
@@ -106,60 +115,64 @@ class TrainBase:
     def optim_fun(self):
         return optim.SGD(self.model.parameters(), lr=self.h_args['learning_rate'], momentum=self.h_args['momentum'])
 
-    def run(self):
-        cuda = torch.cuda.is_available()
-        train_loader = self.get_train_loader()
+    def acc_fun(self):
+        return norm_acc
+
+    def test(self):
+        test_loss = 0
+        test_acc = 0
         test_loader = self.get_test_loader()
+        for x, label in test_loader:
+            x, label = self.preprocessing(x, label)
+            if self.cuda:
+                x = x.cuda()
+                label = label.cuda()
+            output = self.model(x)
+            loss = self.criterion(output, label)
+            test_loss += loss.item() * len(label)
+            test_acc += self.acc(output, label)
+        return test_loss, test_acc
+
+    def run(self):
+        train_loader = self.get_train_loader()
         self.model.train()
-        if cuda:
+        if self.cuda:
             self.model.cuda()
 
-        criterion = self.loss_fun()
-        optimizer = self.optim_fun()
         all_loss_list = []
         test_loss_list = []
+        all_acc_list = []
+        test_acc_list = []
         for e in range(self.h_args['n_epochs']):
             all_loss = 0
+            all_acc = 0
             # train
             for batch_idx, (x, label) in enumerate(train_loader):
                 x, label = self.preprocessing(x, label)
-                if cuda:
+                if self.cuda:
                     x, label = x.cuda(), label.cuda()
                 output = self.model(x)
-                loss = criterion(output, label)
+                loss = self.criterion(output, label)
                 all_loss += loss.item() * len(label)
-                optimizer.zero_grad()
+                acc = self.acc(output, label)
+                all_acc += acc
+                self.optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
-                logging.info('epoch:{}/{}\tbatch_idx:{}/{}, loss:{:.6f}'.format(
-                    e, self.h_args['n_epochs'], batch_idx, len(train_loader), loss
+                self.optimizer.step()
+                logging.info('epoch:{}/{}\tbatch_idx:{}/{}, loss:{:.6f}, acc:{:.6f}'.format(
+                    e, self.h_args['n_epochs'], batch_idx, len(train_loader), loss, acc
                 ))
-            logging.info('\nepoch-{}-end\tall_loss:{:.6f}'.format(e, all_loss))
+            logging.info('\nepoch-{}-end\tall_loss:{:.6f}\tall_acc:{:.6f}'.format(e, all_loss, all_acc))
             all_loss_list.append(all_loss)
+            all_acc_list.append(all_acc/len(train_loader))
 
             # testing
-            test_loss = 0
-            for x, label in test_loader:
-                x, label = self.preprocessing(x, label)
-                if cuda:
-                    x = x.cuda()
-                    label = label.cuda()
-                output = self.model(x)
-                loss = criterion(output, label)
-                test_loss += loss.item() * len(label)
-            print('epoch-{}-test:loss:{:.6f}'.format(e, test_loss))
+            test_loss, test_acc = self.test()
             test_loss_list.append(test_loss)
-            self.save_model('epoch:{}_test-loss:{:.6f}.pth'.format(
-                e, test_loss
+            test_acc_list.append(test_acc)
+            logging.info('epoch-{}-test:loss:{:.6f}-acc:{:.6f}'.format(e, test_loss, test_acc))
+
+            self.save_model('epoch:{}_test-loss:{:.6f}-acc:{:.6f}.pth'.format(
+                e, test_loss, test_acc
             ))
-
-
-
-
-
-
-
-
-
-
 
